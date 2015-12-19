@@ -118,7 +118,7 @@ class ModelGraphShell extends Shell {
 	 * @param string|null $outputFile
 	 * @return int|null|void
 	 */
-	public function transform($inputFile, $outputFile = null) {
+	public function render($inputFile, $outputFile = null) {
 		$this->graphSettings = (array)Configure::read('GraphViz') + $this->graphSettings;
 
 		if (!file_exists($inputFile)) {
@@ -248,13 +248,17 @@ class ModelGraphShell extends Shell {
 			foreach ($models as $model) {
 
 				$modelInstance = TableRegistry::get($model);
-
-				//TEST
-				$modelInstance->hasMany('Books');
+				$this->out('Checking: ' . $model . ' (table ' . $modelInstance->table() . ')', 1, Shell::VERBOSE);
 
 				$associations = $modelInstance->associations();
+				foreach ($associations as $association) {
+					$relationType = $association->type();
+					$relationModel = $association->table();
+					$this->out(' - Relation detected: ' . $model . ' '. $this->relationsSettings[$relationType]['label'] . ' ' . $relationModel, 1, Shell::VERBOSE);
 
-				$result[$plugin][$model] = $associations;
+					$result[$plugin][$model][$relationType][] = $relationModel;
+				}
+
 				continue;
 
 				foreach ($relationsSettings as $relationType => $settings) {
@@ -354,16 +358,14 @@ class ModelGraphShell extends Shell {
 		}
 
 		// Add all relations
-		foreach ($relationsList as $plugin => $relations) {
+		foreach ($relationsList as $plugin => $models) {
 			if (!in_array($plugin, $plugins)) {
 				$plugins[] = $plugin;
 				$pluginGraph = $this->_addCluster($this->graph, $plugin);
 			}
 
-			foreach ($relations as $model => $relations) {
-				foreach ($relations as $relation => $relatedModels) {
-					$relationType = $relatedModels->type();
-					//dd($relatedModels->table());
+			foreach ($models as $model => $relations) {
+				foreach ($relations as $relationType => $relatedModels) {
 
 					$relationsSettings = $settings[$relationType];
 					$relationsSettings['label'] = ''; // no need to pollute the graph with too many labels
@@ -473,12 +475,12 @@ class ModelGraphShell extends Shell {
 				]
 			]
 		];
-		$transformParser = $generateParser;
-		$transformParser['arguments'][] = [
+		$renderParser = $generateParser;
+		$renderParser['arguments'][] = [
 			'name' => 'input.dot',
 			'required' => true
 		];
-		$transformParser['arguments'][] = [
+		$renderParser['arguments'][] = [
 			'name' => 'output.ext',
 		];
 
@@ -487,9 +489,9 @@ class ModelGraphShell extends Shell {
 		)->addSubcommand('generate', [
 				'help' => 'Generate the graph.',
 				'parser' => $generateParser
-		])->addSubcommand('transform', [
+		])->addSubcommand('render', [
 				'help' => 'Transform a dot file into an image.',
-				'parser' => $transformParser
+				'parser' => $renderParser
 			]);
 
 		return $parser;
