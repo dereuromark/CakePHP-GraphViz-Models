@@ -42,6 +42,16 @@ use ReflectionClass;
 class ModelGraphShell extends Shell {
 
 	/**
+	 * Default image format.
+	 */
+	const DEFAULT_FORMAT_IMG = 'svg';
+
+	/**
+	 * Change this to something else if you have a plugin with the same name.
+	 */
+	const GRAPH_LEGEND = 'Graph Legend';
+
+	/**
 	 * Graph settings
 	 *
 	 * Consult the GraphViz documentation for node, edge, and
@@ -51,7 +61,7 @@ class ModelGraphShell extends Shell {
 	 */
 	public $graphSettings = array(
 		'path' => '', // Where the bin dir of dot is located at - if not added to PATH env
-		'label' => 'CakePHP Model Relationships',
+		'label' => 'CakePHP Model Relations',
 		'labelloc' => 't',
 		'fontname' => 'Helvetica',
 		'fontsize' => 12,
@@ -66,8 +76,7 @@ class ModelGraphShell extends Shell {
 	/**
 	 * Relations settings
 	 *
-	 * My weak attempt at using Crow's Foot Notation for
-	 * CakePHP model relationships.
+	 * Using Crow's Foot Notation for CakePHP model relations.
 	 *
 	 * NOTE: Order of the relations in this list is sometimes important.
 	 */
@@ -79,7 +88,7 @@ class ModelGraphShell extends Shell {
 	);
 
 	/**
-	 * Miscelanous settings
+	 * Miscellaneous settings
 	 *
 	 * These are settings that change the behavior
 	 * of the application, but which I didn't feel
@@ -98,27 +107,49 @@ class ModelGraphShell extends Shell {
 	);
 
 	/**
-	 * Change this to something else if you
-	 * have a plugin with the same name.
-	 */
-	const GRAPH_LEGEND = 'Graph Legend';
-
-	/**
 	 * @var \phpDocumentor\GraphViz\Graph
 	 */
 	public $graph;
 
 	/**
 	 * Transforms an existing dot file into an image
+	 *
+	 * @param string $inputFile
+	 * @param string|null $outputFile
+	 * @return int|null|void
 	 */
-	public function transform() {
+	public function transform($inputFile, $outputFile = null) {
+		$this->graphSettings = (array)Configure::read('GraphViz') + $this->graphSettings;
 
+		if (!file_exists($inputFile)) {
+			$this->error('Input file cannot be found.');
+			return;
+		}
+
+		$type = $this->_detectType($outputFile, ['dot']);
+
+		if ($outputFile) {
+			$fileName = $outputFile;
+		} else {
+			$fileName = TMP . 'graph.' . $type;
+		}
+
+		$fileArg = escapeshellarg($inputFile);
+		exec($this->graphSettings['path'] . "dot -T$type -o$fileName < $fileArg 2>&1", $output, $code);
+		if ($code !== 0) {
+			$this->error(implode(PHP_EOL, $output));
+			return;
+		}
+		$this->out('Done :) Image can be found in ' . $fileName, 1, Shell::VERBOSE);
 	}
 
 	/**
-	 * Generates the image from the DB schema
+	 * Generates the image from the DB schema.
+	 *
+	 * @param string|null $outputFile
+	 * @return int|null|void
 	 */
-	public function generate() {
+	public function generate($outputFile = null) {
 		$this->graphSettings = (array)Configure::read('GraphViz') + $this->graphSettings;
 
 		// Prepare graph settings
@@ -137,18 +168,15 @@ class ModelGraphShell extends Shell {
 		$relationsData = $this->_getRelations($models, $this->relationsSettings);
 		$this->_buildGraph($models, $relationsData, $this->relationsSettings);
 
-		// See if file name and format were given
-		$fileName = TMP . 'graph.png';
-		$format = null;
-		if (!empty($this->args[0])) {
-			$fileName = TMP . $this->args[0];
-		}
-		if (!empty($this->args[1])) {
-			$format = $this->args[1];
+		$type = $this->_detectType($outputFile, ['dot']);
+
+		if ($outputFile) {
+			$fileName = $outputFile;
+		} else {
+			$fileName = TMP . 'graph.' . $type;
 		}
 
-		// Save graph image
-		$this->_outputGraph($fileName, $format);
+		$this->_outputGraph($fileName, $type);
 		$this->out('Done :) Result can be found in ' . $fileName, 1, Shell::VERBOSE);
 	}
 
@@ -403,15 +431,18 @@ class ModelGraphShell extends Shell {
 	 * Save graph to a file
 	 *
 	 * @param string $fileName File to save graph to (full path)
-	 * @param string $format Any of the GraphViz supported formats
-	 * @return int Number of bytes written to file
+	 * @param string $format Any of the GraphViz supported formats, or dot
+	 * @return bool Success
 	 */
 	protected function _outputGraph($fileName = null, $format = null) {
-		$result = 0;
+		if ($format === 'dot') {
+			file_put_contents($fileName, (string)$this->graph);
+			return true;
+		}
 
 		// Fall back on PNG if no format was given
 		if (empty($format)) {
-			$format = 'png';
+			$format = self::DEFAULT_FORMAT_IMG;
 		}
 
 		// Fall back on something when nothing is given
@@ -422,6 +453,64 @@ class ModelGraphShell extends Shell {
 		$this->graph->export($format, $fileName);
 
 		return true;
+	}
+
+	/**
+	 * Gets the option parser instance and configures it.
+	 *
+	 * @return \Cake\Console\ConsoleOptionParser
+	 */
+	public function getOptionParser()
+	{
+		$parser = parent::getOptionParser();
+
+		$generateParser = [
+			'options' => [
+				'format' => [
+					'short' => 'f',
+					'help' => 'Format to render. Supports all GraphViz ones and dot for plain dot output. Defaults to svg.',
+					'default' => null
+				]
+			]
+		];
+		$transformParser = $generateParser;
+		$transformParser['arguments'][] = [
+			'name' => 'input.dot',
+			'required' => true
+		];
+		$transformParser['arguments'][] = [
+			'name' => 'output.ext',
+		];
+
+		$parser->description(
+			'Render graphs from the model relations.'
+		)->addSubcommand('generate', [
+				'help' => 'Generate the graph.',
+				'parser' => $generateParser
+		])->addSubcommand('transform', [
+				'help' => 'Transform a dot file into an image.',
+				'parser' => $transformParser
+			]);
+
+		return $parser;
+	}
+
+	/**
+	 * @param string|null $outputFile
+	 * @param array $exclude
+	 * @return string
+     */
+	protected function _detectType($outputFile, $exclude = []) {
+		$type = self::DEFAULT_FORMAT_IMG;
+		if (!empty($this->params['format']) && !in_array($this->params['format'], $exclude)) {
+			$type = $this->params['format'];
+		} elseif ($outputFile) {
+			$detectedType = pathinfo($outputFile, PATHINFO_EXTENSION);
+			if ($detectedType && !in_array($detectedType, $exclude)) {
+				$type = $detectedType;
+			}
+		}
+		return $type;
 	}
 
 }
