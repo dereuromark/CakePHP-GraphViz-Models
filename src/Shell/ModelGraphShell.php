@@ -2,6 +2,7 @@
 
 namespace ModelGraph\Shell;
 
+use Bake\Shell\Task\BakeTemplateTask;
 use Cake\Console\Shell;
 use Cake\Core\App;
 use Cake\Core\Configure;
@@ -9,13 +10,14 @@ use Cake\Core\Plugin;
 use Cake\Log\Log;
 
 use Cake\ORM\TableRegistry;
+use Migrations\Shell\Task\MigrationSnapshotTask;
 use phpDocumentor\GraphViz\Edge;
 use phpDocumentor\GraphViz\Graph;
 use phpDocumentor\GraphViz\Node;
 use ReflectionClass;
 
 /**
- * CakePHP GraphViz Relations
+ * CakePHP ModelGraph
  *
  * This shell examines all models in the current application and its plugins,
  * finds all relations between them, and then generates a graphical representation
@@ -24,7 +26,7 @@ use ReflectionClass;
  * <b>Usage:</b>
  *
  * <code>
- * $ Console/cake GraphVizRelations.graph [filename] [format]
+ * $ bin/cake ModelGraph generate [filename] [format]
  * </code>
  *
  * <b>Parameters:</b>
@@ -35,18 +37,17 @@ use ReflectionClass;
  *
  * @author Leonid Mamchenkov <leonid@mamchenkov.net>
  * @author Mark Scherer
- * @version 2.1 (Angry Blue Octopus On Steroids)
  */
 class ModelGraphShell extends Shell {
 
-/**
- * Graph settings
- *
- * Consult the GraphViz documentation for node, edge, and
- * graph attributes for more information.
- *
- * @link http://www.graphviz.org/doc/info/attrs.html
- */
+	/**
+	 * Graph settings
+	 *
+	 * Consult the GraphViz documentation for node, edge, and
+	 * graph attributes for more information.
+	 *
+	 * @link http://www.graphviz.org/doc/info/attrs.html
+	 */
 	public $graphSettings = array(
 		'path' => '', // Where the bin dir of dot is located at - if not added to PATH env
 		'label' => 'CakePHP Model Relationships',
@@ -61,14 +62,14 @@ class ModelGraphShell extends Shell {
 		'rankdir' => 'TB', // Interpret nodes from Top-to-Bottom or Left-to-Right (use: LR)
 	);
 
-/**
- * Relations settings
- *
- * My weak attempt at using Crow's Foot Notation for
- * CakePHP model relationships.
- *
- * NOTE: Order of the relations in this list is sometimes important.
- */
+	/**
+	 * Relations settings
+	 *
+	 * My weak attempt at using Crow's Foot Notation for
+	 * CakePHP model relationships.
+	 *
+	 * NOTE: Order of the relations in this list is sometimes important.
+	 */
 	public $relationsSettings = array(
 		'belongsTo' => array('label' => 'belongsTo', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'none', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
 		'hasMany' => array('label' => 'hasMany', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'crow', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
@@ -76,13 +77,13 @@ class ModelGraphShell extends Shell {
 		'belongsToMany' => array('label' => 'belongsToMany', 'dir' => 'both', 'color' => 'red', 'arrowhead' => 'crow', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
 	);
 
-/**
- * Miscelanous settings
- *
- * These are settings that change the behavior
- * of the application, but which I didn't feel
- * safe enough to send to GraphViz.
- */
+	/**
+	 * Miscelanous settings
+	 *
+	 * These are settings that change the behavior
+	 * of the application, but which I didn't feel
+	 * safe enough to send to GraphViz.
+	 */
 	public $miscSettings = array(
 		// If true, graphs will use only real model names (via className).  If false,
 		// graphs will use whatever you specified as the name of relationship class.
@@ -95,23 +96,28 @@ class ModelGraphShell extends Shell {
 		'timestamp' => ' [Y-m-d H:i:s]',
 	);
 
-/**
- * Change this to something else if you
- * have a plugin with the same name.
- */
+	/**
+	 * Change this to something else if you
+	 * have a plugin with the same name.
+	 */
 	const GRAPH_LEGEND = 'Graph Legend';
 
-/**
- * We'll use this to store the graph thingy
- */
+	/**
+	 * @var \phpDocumentor\GraphViz\Graph
+	 */
 	public $graph;
 
-/**
- * CakePHP's Shell main() routine
- *
- * This routine is called when the shell is executed via console.
- */
-	public function main() {
+	/**
+	 * Transforms an existing dot file into an image
+	 */
+	public function transform() {
+
+	}
+
+	/**
+	 * Generates the image from the DB schema
+	 */
+	public function generate() {
 		$this->graphSettings = (array)Configure::read('GraphViz') + $this->graphSettings;
 
 		// Prepare graph settings
@@ -128,6 +134,7 @@ class ModelGraphShell extends Shell {
 
 		$models = $this->_getModels();
 		$relationsData = $this->_getRelations($models, $this->relationsSettings);
+		dd($relationsData);
 		$this->_buildGraph($models, $relationsData, $this->relationsSettings);
 
 		// See if file name and format were given
@@ -144,40 +151,29 @@ class ModelGraphShell extends Shell {
 		$this->_outputGraph($fileName, $format);
 	}
 
-/**
- * Return a list of instantiable classes from a list of classes
- *
- * @param array $classList
- * @return array $classList
- */
-	protected function _onlyInstantiableClasses($classList, $plugin = null) {
-		// make sure the model isn't abstract or an interface
-		$toDelete = [];
-		foreach ($classList as $key => $class) {
-			/* TODO: App::uses($class, ($plugin ? $plugin . '.' : '') . 'Model'); */
-			$reflectionClass = new ReflectionClass($class);
-			if (!$reflectionClass->isInstantiable()) {
-				$toDelete[] = $key;
-			}
-		}
-		foreach ($toDelete as $value) {
-			unset($classList[$value]);
-		}
-
-		return $classList;
-	}
-
-/**
- * Get a list of all models to process
- *
- * This will only include models that can be instantiated, and plugins that are loaded by the bootstrap
- *
- * @return array
- */
+	/**
+	 * Get a list of all models to process
+	 *
+	 * This will only include models that can be instantiated, and plugins that are loaded by the bootstrap
+	 *
+	 * @return array
+	 */
 	protected function _getModels() {
 		$result = array();
 
-		$appModels = $this->_onlyInstantiableClasses(App::objects('Model', null, false));
+		if (Plugin::loaded('Migrations')) {
+			$task = new MigrationSnapshotTask();
+			$task->params['require-table'] = false;
+			$task->BakeTemplate = new BakeTemplateTask();
+			$task->BakeTemplate->viewVars['name'] = null;
+			$task->connection = 'default';
+			$data = $task->templateData();
+			$tables = $data['tables'];
+			return ['app' => $tables];
+		}
+
+		//can be removed?
+		$appModels = App::objects('Model', null, false);
 		$result['app'] = array();
 		foreach ($appModels as $model) {
 			if (strpos($model, 'AppModel') !== false) {
@@ -209,43 +205,47 @@ class ModelGraphShell extends Shell {
 		return $result;
 	}
 
-/**
- * Get the list of relationss for given models
- *
- * @param array $modelsList List of models by module (apps, plugins, etc)
- * @param array $relationsSettings Relationship settings
- * @return array
- */
+	/**
+	 * Get the list of relations for given models
+	 *
+	 * @param array $modelsList List of models by module (apps, plugins, etc)
+	 * @param array $relationsSettings Relationship settings
+	 * @return array
+	 */
 	protected function _getRelations($modelsList, $relationsSettings) {
 		$result = array();
 
 		foreach ($modelsList as $plugin => $models) {
 			foreach ($models as $model) {
 
-				// This will work only if you have models and nothing else
-				// in app/Model/ and app/Plugin/*/Model/ . Otherwise, ***KABOOM*** and ***CRASH***.
-				// Rearrange your files or patch up $this->getModels()
 				$modelInstance = TableRegistry::get($model);
-				if (isset($modelInstance->useTable) && $modelInstance->useTable === false) {
-					continue;
-				}
 
-				foreach ($relationsSettings as $relation => $settings) {
-					if (empty($modelInstance->$relation) || !is_array($modelInstance->$relation)) {
+				//TEST
+				$modelInstance->hasMany('Books');
+
+				$associations = $modelInstance->associations();
+
+				$result[$plugin][$model] = $associations;
+				continue;
+
+				foreach ($relationsSettings as $relationType => $settings) {
+					if (empty($modelInstance->$relationType) || !is_array($modelInstance->$relationType)) {
 						continue;
 					}
 
+					$relations = $modelInstance->$relationType;
+
 					if ($this->miscSettings['realModels']) {
-						$result[$plugin][$model][$relation] = array();
-						foreach ($modelInstance->$relation as $name => $value) {
+						$result[$plugin][$model][$relationType] = array();
+						foreach ($relations as $name => $value) {
 							if (is_array($value) && !empty($value) && !empty($value['className'])) {
-								$result[$plugin][$model][$relation][] = $value['className'];
+								$result[$plugin][$model][$relationType][] = $value['className'];
 							} else {
-								$result[$plugin][$model][$relation][] = $name;
+								$result[$plugin][$model][$relationType][] = $name;
 							}
 						}
 					} else {
-						$result[$plugin][$model][$relation] = array_keys($modelInstance->$relation);
+						$result[$plugin][$model][$relationType] = array_keys($relations);
 					}
 				}
 			}
@@ -254,16 +254,16 @@ class ModelGraphShell extends Shell {
 		return $result;
 	}
 
-/**
- * Add a cluster to a graph
- *
- * If the cluster already exists on the graph, then the cluster graph is returned
- *
- * @param Graph $graph
- * @param string $name
- * @param string $label
- * @return Graph $clusterGraph
- */
+	/**
+	 * Add a cluster to a graph
+	 *
+	 * If the cluster already exists on the graph, then the cluster graph is returned
+	 *
+	 * @param Graph $graph
+	 * @param string $name
+	 * @param string $label
+	 * @return Graph $clusterGraph
+	 */
 	protected function _addCluster($graph, $name, $label = null, $attributes = array()) {
 		if ($label === null) {
 			$label = $name;
@@ -278,13 +278,13 @@ class ModelGraphShell extends Shell {
 		return $clusterGraph;
 	}
 
-/**
- * Set attributes on an object
- *
- * @param mixed $object
- * @param array $attributes
- * @return mixed $object
- */
+	/**
+	 * Set attributes on an object
+	 *
+	 * @param mixed $object
+	 * @param array $attributes
+	 * @return mixed $object
+	 */
 	protected function _addAttributes($object, $attributes) {
 		foreach ($attributes as $key => $value) {
 			call_user_func(array($object, 'set' . $key), $value);
@@ -292,14 +292,14 @@ class ModelGraphShell extends Shell {
 		return $object;
 	}
 
-/**
- * Populate graph with nodes and edges
- *
- * @param array $models Available models
- * @param array $relations Availalbe relationships
- * @param array $settings Settings
- * @return void
- */
+	/**
+	 * Populate graph with nodes and edges
+	 *
+	 * @param array $models Available models
+	 * @param array $relations Availalbe relationships
+	 * @param array $settings Settings
+	 * @return void
+	 */
 	protected function _buildGraph($modelsList, $relationsList, $settings) {
 		// We'll collect apps and plugins in here
 		$plugins = array();
@@ -356,17 +356,17 @@ class ModelGraphShell extends Shell {
 		}
 	}
 
-/**
- * Add graph legend
- *
- * For every type of the relationship in CakePHP we add two nodes (from, to)
- * to the graph and then link them, using the settings of each relationship
- * type.  Nodes are grouped into the Graph Legend cluster, so they don't
- * interfere with the rest of the nodes.
- *
- * @param array $relationsSettings Array with relation types and settings
- * @return void
- */
+	/**
+	 * Add graph legend
+	 *
+	 * For every type of the relationship in CakePHP we add two nodes (from, to)
+	 * to the graph and then link them, using the settings of each relationship
+	 * type.  Nodes are grouped into the Graph Legend cluster, so they don't
+	 * interfere with the rest of the nodes.
+	 *
+	 * @param array $relationsSettings Array with relation types and settings
+	 * @return void
+	 */
 	protected function _buildGraphLegend($relationsSettings) {
 		$legendNodeSettings = array(
 				'shape' => 'box',
@@ -395,13 +395,13 @@ class ModelGraphShell extends Shell {
 		}
 	}
 
-/**
- * Save graph to a file
- *
- * @param string $fileName File to save graph to (full path)
- * @param string $format Any of the GraphViz supported formats
- * @return int Number of bytes written to file
- */
+	/**
+	 * Save graph to a file
+	 *
+	 * @param string $fileName File to save graph to (full path)
+	 * @param string $format Any of the GraphViz supported formats
+	 * @return int Number of bytes written to file
+	 */
 	protected function _outputGraph($fileName = null, $format = null) {
 		$result = 0;
 
