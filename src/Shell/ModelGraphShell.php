@@ -168,7 +168,7 @@ class ModelGraphShell extends Shell {
 		$relationsData = $this->_getRelations($models, $this->relationsSettings);
 		$this->_buildGraph($models, $relationsData, $this->relationsSettings);
 
-		$type = $this->_detectType($outputFile, ['dot']);
+		$type = $this->_detectType($outputFile);
 
 		if ($outputFile) {
 			$fileName = $outputFile;
@@ -329,8 +329,8 @@ class ModelGraphShell extends Shell {
 	/**
 	 * Populate graph with nodes and edges
 	 *
-	 * @param array $models Available models
-	 * @param array $relations Availalbe relationships
+	 * @param array $modelsList Available models
+	 * @param array $relationsList Availalbe relationships
 	 * @param array $settings Settings
 	 * @return void
 	 */
@@ -350,7 +350,7 @@ class ModelGraphShell extends Shell {
 			}
 
 			foreach ($models as $model) {
-				$label = preg_replace("/^$plugin\./", '', $model);
+				$label = preg_replace("/^$plugin\\./", '', $model);
 				$node = Node::create($model, $label)->setShape('box')->setFontname('Helvetica')->setFontsize(10);
 				$pluginGraph = $this->_addCluster($this->graph, $plugin);
 				$pluginGraph->setNode($node);

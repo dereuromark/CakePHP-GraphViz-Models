@@ -94,3 +94,6 @@ Cake\Datasource\ConnectionManager::config('test', [
 	'quoteIdentifiers' => true,
 	'cacheMetadata' => true,
 ]);
+
+
+\Cake\Core\Configure::write('GraphViz.path', 'D:\wamp\www\work\lonely-traveller\site\vendor\graphviz\bin\\');

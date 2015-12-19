@@ -3,6 +3,7 @@ namespace ModelGraph\Test\TestCase\Shell;
 
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOutput;
+use Cake\Core\Plugin;
 use Cake\TestSuite\TestCase;
 
 /**
@@ -24,6 +25,11 @@ class TestClearOutput extends ConsoleOutput {
 class ModelGraphShellTest extends TestCase {
 
 	/**
+	 * @var \ModelGraph\Shell\ModelGraphShell
+	 */
+	protected $Shell;
+
+	/**
 	 * setUp method
 	 *
 	 * @return void
@@ -39,6 +45,8 @@ class ModelGraphShellTest extends TestCase {
 			['in', 'err', '_stop'],
 			[$io]
 		);
+
+		$this->testFilePath = Plugin::path('ModelGraph') . 'tests' . DS . 'test_files' . DS;
 	}
 
 	/**
@@ -52,12 +60,25 @@ class ModelGraphShellTest extends TestCase {
 	}
 
 	/**
-	 * Test clean command
-	 *
 	 * @return void
 	 */
-	public function testClearLogs() {
+	public function testRender() {
+		$in = $this->testFilePath . 'graph.dot';
+		$out = TMP . 'graph.svg';
+		$this->Shell->render($in, $out);
 
+		$this->assertFileExists($out);
+	}
+
+	/**
+	 * @return void
+	 */
+	public function testGenerate() {
+		$this->Shell->params['format'] = 'dot';
+		$this->Shell->generate();
+
+		$out = TMP . 'graph.dot';
+		$this->assertFileExists($out);
 	}
 
 }

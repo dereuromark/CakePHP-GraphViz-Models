@@ -1,0 +1,140 @@
+digraph "G" {
+subgraph "cluster_Graph Legend" {
+label="Graph Legend"
+"oneToOne_from" -> "oneToOne_to" [
+label="hasOne"
+dir="both"
+color="magenta"
+arrowhead="tee"
+arrowtail="none"
+fontname="Helvetica"
+fontsize="10"
+]
+"oneToMany_from" -> "oneToMany_to" [
+label="hasMany"
+dir="both"
+color="blue"
+arrowhead="crow"
+arrowtail="none"
+fontname="Helvetica"
+fontsize="10"
+]
+"manyToOne_from" -> "manyToOne_to" [
+label="belongsTo"
+dir="both"
+color="blue"
+arrowhead="none"
+arrowtail="crow"
+fontname="Helvetica"
+fontsize="10"
+]
+"manyToMany_from" -> "manyToMany_to" [
+label="belongsToMany"
+dir="both"
+color="red"
+arrowhead="crow"
+arrowtail="crow"
+fontname="Helvetica"
+fontsize="10"
+]
+"oneToOne_from" [
+label="A"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"oneToOne_to" [
+label="B"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"oneToMany_from" [
+label="A"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"oneToMany_to" [
+label="B"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"manyToOne_from" [
+label="A"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"manyToOne_to" [
+label="B"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"manyToMany_from" [
+label="A"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+"manyToMany_to" [
+label="B"
+shape="box"
+width="0.5"
+fontname="Helvetica"
+fontsize="10"
+]
+}
+subgraph "cluster_app" {
+label="app"
+"emails" [
+label="emails"
+shape="box"
+fontname="Helvetica"
+fontsize="10"
+]
+"events" [
+label="events"
+shape="box"
+fontname="Helvetica"
+fontsize="10"
+]
+"prospect_sources" [
+label="prospect_sources"
+shape="box"
+fontname="Helvetica"
+fontsize="10"
+]
+"prospects" [
+label="prospects"
+shape="box"
+fontname="Helvetica"
+fontsize="10"
+]
+}
+label="CakePHP Model Relations [2015-12-19 18:53:28]"
+labelloc="t"
+fontname="Helvetica"
+fontsize="12"
+concentrate="true"
+landscape="false"
+rankdir="TB"
+"prospects" -> "prospect_sources" [
+label=""
+dir="both"
+color="blue"
+arrowhead="none"
+arrowtail="crow"
+fontname="Helvetica"
+fontsize="10"
+]
+}
