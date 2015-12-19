@@ -24,6 +24,13 @@ Currently you need also:
 ]
 ```
 
+Load plugin in `config/bootstrap.php`
+
+```php
+Plugin::load('ModelGraph');
+```
+
+
 ## Requirements
 
 This script relies on phpDocumentor/Graphviz
