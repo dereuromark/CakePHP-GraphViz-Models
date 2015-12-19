@@ -1,0 +1,8 @@
+digraph G {
+nodebook [label="{<table>book|<cols>id (INTEGER) [PK]\ltitle (VARCHAR)\lisbn (VARCHAR)\lpublisher_id (INTEGER) [FK]\lauthor_id (INTEGER) [FK]\l}", shape=record];
+nodeauthor [label="{<table>author|<cols>id (INTEGER) [PK]\lfirst_name (VARCHAR)\llast_name (VARCHAR)\l}", shape=record];
+nodepublisher [label="{<table>publisher|<cols>id (INTEGER) [PK]\lname (VARCHAR)\l}", shape=record];
+
+nodebook:cols -> nodepublisher:table [label="publisher_id=id ", color=gray];
+nodebook:cols -> nodeauthor:table [label="author_id=id ", color=gray];
+}

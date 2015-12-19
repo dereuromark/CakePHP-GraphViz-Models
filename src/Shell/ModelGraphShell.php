@@ -2,14 +2,17 @@
 
 namespace ModelGraph\Shell;
 
+use Cake\Console\Shell;
 use Cake\Core\App;
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
 use Cake\Log\Log;
 
+use Cake\ORM\TableRegistry;
 use phpDocumentor\GraphViz\Edge;
 use phpDocumentor\GraphViz\Graph;
 use phpDocumentor\GraphViz\Node;
+use ReflectionClass;
 
 /**
  * CakePHP GraphViz Relations
@@ -34,7 +37,7 @@ use phpDocumentor\GraphViz\Node;
  * @author Mark Scherer
  * @version 2.1 (Angry Blue Octopus On Steroids)
  */
-class GraphShell extends AppShell {
+class ModelGraphShell extends Shell {
 
 /**
  * Graph settings
@@ -45,18 +48,18 @@ class GraphShell extends AppShell {
  * @link http://www.graphviz.org/doc/info/attrs.html
  */
 	public $graphSettings = array(
-			'path' => '', // Where the bin dir of dot is located at - if not added to PATH env
-			'label' => 'CakePHP Model Relationships',
-			'labelloc' => 't',
-			'fontname' => 'Helvetica',
-			'fontsize' => 12,
-			//
-			// Tweaking these might produce better results
-			//
-			'concentrate' => 'true', // Join multiple connecting lines between same nodes
-			'landscape' => 'false', // Rotate resulting graph by 90 degrees
-			'rankdir' => 'TB', // Interpret nodes from Top-to-Bottom or Left-to-Right (use: LR)
-		);
+		'path' => '', // Where the bin dir of dot is located at - if not added to PATH env
+		'label' => 'CakePHP Model Relationships',
+		'labelloc' => 't',
+		'fontname' => 'Helvetica',
+		'fontsize' => 12,
+		//
+		// Tweaking these might produce better results
+		//
+		'concentrate' => 'true', // Join multiple connecting lines between same nodes
+		'landscape' => 'false', // Rotate resulting graph by 90 degrees
+		'rankdir' => 'TB', // Interpret nodes from Top-to-Bottom or Left-to-Right (use: LR)
+	);
 
 /**
  * Relations settings
@@ -67,11 +70,11 @@ class GraphShell extends AppShell {
  * NOTE: Order of the relations in this list is sometimes important.
  */
 	public $relationsSettings = array(
-			'belongsTo' => array('label' => 'belongsTo', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'none', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-			'hasMany' => array('label' => 'hasMany', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'crow', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-			'hasOne' => array('label' => 'hasOne', 'dir' => 'both', 'color' => 'magenta', 'arrowhead' => 'tee', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-			'hasAndBelongsToMany' => array('label' => 'HABTM', 'dir' => 'both', 'color' => 'red', 'arrowhead' => 'crow', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-		);
+		'belongsTo' => array('label' => 'belongsTo', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'none', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		'hasMany' => array('label' => 'hasMany', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'crow', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		'hasOne' => array('label' => 'hasOne', 'dir' => 'both', 'color' => 'magenta', 'arrowhead' => 'tee', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		'belongsToMany' => array('label' => 'belongsToMany', 'dir' => 'both', 'color' => 'red', 'arrowhead' => 'crow', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+	);
 
 /**
  * Miscelanous settings
@@ -397,7 +400,7 @@ class GraphShell extends AppShell {
  *
  * @param string $fileName File to save graph to (full path)
  * @param string $format Any of the GraphViz supported formats
- * @return numeric Number of bytes written to file
+ * @return int Number of bytes written to file
  */
 	protected function _outputGraph($fileName = null, $format = null) {
 		$result = 0;
