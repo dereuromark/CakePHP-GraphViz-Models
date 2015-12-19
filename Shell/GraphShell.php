@@ -1,8 +1,11 @@
 <?php
 
-App::uses('AppShell', 'Console\Command');
-App::uses('CakeLog', 'Log');
-App::uses('ClassRegistry', 'Utility');
+namespace ModelGraph\Shell;
+
+use Cake\Core\App;
+use Cake\Core\Configure;
+use Cake\Core\Plugin;
+use Cake\Log\Log;
 
 use phpDocumentor\GraphViz\Edge;
 use phpDocumentor\GraphViz\Graph;
@@ -148,7 +151,7 @@ class GraphShell extends AppShell {
 		// make sure the model isn't abstract or an interface
 		$toDelete = [];
 		foreach ($classList as $key => $class) {
-			App::uses($class, ($plugin ? $plugin . '.' : '') . 'Model');
+			/* TODO: App::uses($class, ($plugin ? $plugin . '.' : '') . 'Model'); */
 			$reflectionClass = new ReflectionClass($class);
 			if (!$reflectionClass->isInstantiable()) {
 				$toDelete[] = $key;
@@ -179,7 +182,7 @@ class GraphShell extends AppShell {
 			}
 			$result['app'][] = $model;
 		}
-		$plugins = CakePlugin::loaded();
+		$plugins = Plugin::loaded();
 		foreach ($plugins as $plugin) {
 			if (in_array($plugin, array('DebugKit', 'Migrations'))) {
 				continue;
@@ -219,7 +222,7 @@ class GraphShell extends AppShell {
 				// This will work only if you have models and nothing else
 				// in app/Model/ and app/Plugin/*/Model/ . Otherwise, ***KABOOM*** and ***CRASH***.
 				// Rearrange your files or patch up $this->getModels()
-				$modelInstance = ClassRegistry::init($model);
+				$modelInstance = TableRegistry::get($model);
 				if (isset($modelInstance->useTable) && $modelInstance->useTable === false) {
 					continue;
 				}
@@ -333,11 +336,11 @@ class GraphShell extends AppShell {
 					foreach ($relatedModels as $relatedModel) {
 						$modelNode = $this->graph->findNode($model);
 						if ($modelNode === null) {
-							CakeLog::error('Could not find node for ' . $model);
+							Log::error('Could not find node for ' . $model);
 						} else {
 							$relatedModelNode = $this->graph->findNode($relatedModel);
 							if ($relatedModelNode === null) {
-								CakeLog::error('Could not find node for ' . $relatedModel);
+								Log::error('Could not find node for ' . $relatedModel);
 							} else {
 								$edge = Edge::create($modelNode, $relatedModelNode);
 								$this->graph->link($edge);
