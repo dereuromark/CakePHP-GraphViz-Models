@@ -1,14 +1,10 @@
-CakePHP GraphViz Relations
------------------------
+# CakePHP ModelGraph plugin
 
-This is a CakePHP shell that will find all models in your CakePHP application and
+This is a CakePHP shell that will find all Tables in your CakePHP application and
 plugins, figure out the relationships between them, and will build a nice graph,
-visualzing those relationships for you.
+visualizing those relationships for you.
 
-It supports CakePHP 2.x, and requires PHP 5.3.3 or greater.  But there
-are numerous ways it can fail to work for you.  If it does fail, please let me
-know and I'll try to fix it.
-
+It supports CakePHP 3.x, and requires PHP 5.4+ or greater. Windows is also supporting.
 
 Intallation via Composer
 
@@ -18,37 +14,51 @@ require: {
 }
 ```
 
+Currently you need also:
+```
+"repositories" : [
+	{
+		"type": "vcs",
+		"url": "https://github.com/dereuromark/CakePHP-GraphViz-Models"
+	},
+]
+```
 
-Requirements
-------------
+## Requirements
 
-Since version 2.1 (Angry Blue Octopus On Steroids), this script relies on phpDocumentor/Graphviz
+This script relies on phpDocumentor/Graphviz
 package, rather than directly on the command-line dot tool.
-But you will need to install the Graphviz command line tool incl. dot.
+But you will need to install the Graphviz command line tool incl. `dot`.
 
+If on Windows, make sure you set the path in Configure key `GraphViz.path`:
+```php
+// config/app.php
+'GraphViz' => [
+	'path' => 'C:\...\graphviz\bin\\',
+],
+```
 
-Usage
------
+## Usage
 
 The simplest way to use this shell is just to run it via CakePHP console:
 
 ```
-$ Console/cake GraphVizRelations.graph
+$ Console/cake ModelGraph generate
 ```
 
-This should generate a graph.png image in your current directory.  Please have a look.
+This should generate a graph.png image in your TMP directory.  Please have a look.
 
 If you need more control, there are two options that this shell understand from the
 command line: filename and format.   You can use either the filename option like so:
 
 ```
-$ Console/cake GraphVizRelations.graph /tmp/my_models.png
+$ Console/cake ModelGraph generate /tmp/my_models.png
 ```
 
 Or you can use both options together like so:
 
 ```
-$ Console/cake GraphVizRelations.graph /tmp/my_models.svg svg
+$ Console/cake ModelGraph generate /tmp/my_models.svg svg
 ```
 
 No special magic is done about the filename.  What You Give Is What You Get.  As for the

@@ -9,6 +9,7 @@ use Cake\Core\Configure;
 use Cake\Core\Plugin;
 use Cake\Log\Log;
 
+use Cake\ORM\Association;
 use Cake\ORM\TableRegistry;
 use Migrations\Shell\Task\MigrationSnapshotTask;
 use phpDocumentor\GraphViz\Edge;
@@ -71,10 +72,10 @@ class ModelGraphShell extends Shell {
 	 * NOTE: Order of the relations in this list is sometimes important.
 	 */
 	public $relationsSettings = array(
-		'belongsTo' => array('label' => 'belongsTo', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'none', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-		'hasMany' => array('label' => 'hasMany', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'crow', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-		'hasOne' => array('label' => 'hasOne', 'dir' => 'both', 'color' => 'magenta', 'arrowhead' => 'tee', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
-		'belongsToMany' => array('label' => 'belongsToMany', 'dir' => 'both', 'color' => 'red', 'arrowhead' => 'crow', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		Association::ONE_TO_ONE => array('label' => 'hasOne', 'dir' => 'both', 'color' => 'magenta', 'arrowhead' => 'tee', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		Association::ONE_TO_MANY => array('label' => 'hasMany', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'crow', 'arrowtail' => 'none', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		Association::MANY_TO_ONE => array('label' => 'belongsTo', 'dir' => 'both', 'color' => 'blue', 'arrowhead' => 'none', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
+		Association::MANY_TO_MANY => array('label' => 'belongsToMany', 'dir' => 'both', 'color' => 'red', 'arrowhead' => 'crow', 'arrowtail' => 'crow', 'fontname' => 'Helvetica', 'fontsize' => 10, ),
 	);
 
 	/**
@@ -88,7 +89,7 @@ class ModelGraphShell extends Shell {
 		// If true, graphs will use only real model names (via className).  If false,
 		// graphs will use whatever you specified as the name of relationship class.
 		// This might get very confusing, so you mostly would want to keep this as true.
-		'realModels' => true,
+		'realModels' => true, //TODO: make this alias => true/false better?
 
 		// If set to not empty value, the value will be used as a date() format, that
 		// will be appended to the main graph label. Set to empty string or null to avoid
@@ -134,7 +135,6 @@ class ModelGraphShell extends Shell {
 
 		$models = $this->_getModels();
 		$relationsData = $this->_getRelations($models, $this->relationsSettings);
-		dd($relationsData);
 		$this->_buildGraph($models, $relationsData, $this->relationsSettings);
 
 		// See if file name and format were given
@@ -149,6 +149,7 @@ class ModelGraphShell extends Shell {
 
 		// Save graph image
 		$this->_outputGraph($fileName, $format);
+		$this->out('Done :) Result can be found in ' . $fileName, 1, Shell::VERBOSE);
 	}
 
 	/**
@@ -187,7 +188,7 @@ class ModelGraphShell extends Shell {
 				continue;
 			}
 
-			$pluginModels = $this->_onlyInstantiableClasses(App::objects($plugin . '.Model', null, false), $plugin);
+			$pluginModels = App::objects($plugin . '.Model', null, false);
 			if (!empty($pluginModels)) {
 				if (!isset($result[$plugin])) {
 					$result[$plugin] = array();
@@ -259,10 +260,11 @@ class ModelGraphShell extends Shell {
 	 *
 	 * If the cluster already exists on the graph, then the cluster graph is returned
 	 *
-	 * @param Graph $graph
+	 * @param \phpDocumentor\GraphViz\Graph $graph
 	 * @param string $name
 	 * @param string $label
-	 * @return Graph $clusterGraph
+	 * @param array $attributes
+	 * @return \phpDocumentor\GraphViz\Graph
 	 */
 	protected function _addCluster($graph, $name, $label = null, $attributes = array()) {
 		if ($label === null) {
@@ -332,8 +334,10 @@ class ModelGraphShell extends Shell {
 
 			foreach ($relations as $model => $relations) {
 				foreach ($relations as $relation => $relatedModels) {
+					$relationType = $relatedModels->type();
+					//dd($relatedModels->table());
 
-					$relationsSettings = $settings[$relation];
+					$relationsSettings = $settings[$relationType];
 					$relationsSettings['label'] = ''; // no need to pollute the graph with too many labels
 
 					foreach ($relatedModels as $relatedModel) {
