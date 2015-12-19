@@ -19,5 +19,17 @@
 	"require": {
 		"cakephp/cakephp": "~3.1",
 		"phpDocumentor/GraphViz": "1.*"
+	},
+	"autoload": {
+		"psr-4": {
+			"ModelGraph\\": "src"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"ModelGraph\\Test\\": "tests",
+			"Cake\\Test\\": "vendor/cakephp/cakephp/tests",
+			"TestApp\\": "tests/TestApp"
+		}
 	}
 }
