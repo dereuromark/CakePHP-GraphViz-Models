@@ -54,7 +54,7 @@ Plugin::load('ModelGraph');
 The simplest way to use this shell is just to run it via CakePHP console:
 
 ```
-$ Console/cake ModelGraph generate
+$ bin/cake ModelGraph generate
 ```
 
 This should generate a graph.png image in your TMP directory.  Please have a look.
@@ -63,14 +63,14 @@ If you need more control, there are two options that this shell understand from 
 command line: filename and format.   You can use either the filename option like so:
 
 ```
-$ Console/cake ModelGraph generate /tmp/relations.dot
+$ bin/cake ModelGraph generate /tmp/relations.dot
 ```
 It will derive the format from the extension if possible.
 
 You can provide the format manually, as well:
 
 ```
-$ Console/cake ModelGraph generate -f svg
+$ bin/cake ModelGraph generate -f svg
 ```
 
 No special magic is done about the filename.  What You Give Is What You Get.  As for the
@@ -83,7 +83,7 @@ confident.
 
 In case you rendered a dot file first, you can use the `render` command to make an image out of it:
 ```
-$ Console/cake ModelGraph render /tmp/relations.dot /tmp/relations.svg
+$ bin/cake ModelGraph render /tmp/relations.dot /tmp/relations.svg
 ```
 
 Enjoy!
