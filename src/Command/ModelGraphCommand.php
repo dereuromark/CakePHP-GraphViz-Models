@@ -134,8 +134,23 @@ class ModelGraphCommand extends Command {
 		$this->io = $io;
 
 		$models = $this->getModels();
-		$relationsData = $this->_getRelations($models, $this->relationsSettings);
+		$relationsData = $this->getRelations($models, $this->relationsSettings);
+
 		//output text
+		foreach ($relationsData as $plugin => $relationsDatum) {
+			foreach ($relationsDatum as $model => $modelRelations) {
+				$this->io->out($plugin . '.'. $model);
+				foreach ($modelRelations as $relation => $relatedModels) {
+					$this->io->out('  ' . $relation);
+					foreach ($relatedModels as $relatedModel) {
+						$this->io->out('   - ' . $relatedModel);
+					}
+				}
+			}
+		}
+
+		$this->io->out('');
+		$this->io->out('Generating images...');
 
 		$fileName = $this->generate($models, $relationsData);
 		$io->out('Done :) Result can be found in ' . $fileName, 1, ConsoleIo::VERBOSE);
@@ -221,7 +236,9 @@ class ModelGraphCommand extends Command {
 	 * @return array
 	 */
 	protected function getModels(): array {
-		$result = $this->_getModels();
+		$result = [
+			'APP' => $this->_getModels(),
+		];
 
 		$plugins = Plugin::loaded();
 		foreach ($plugins as $plugin) {
@@ -235,7 +252,7 @@ class ModelGraphCommand extends Command {
 				if (strpos($model, 'AppModel') !== false) {
 					continue;
 				}
-				$result[] = $plugin . '.' . $model;
+				$result[$plugin][] = $model;
 			}
 		}
 
@@ -298,46 +315,50 @@ class ModelGraphCommand extends Command {
 	 * @param array $relationsSettings Relationship settings
 	 * @return array
 	 */
-	protected function _getRelations(array $modelsList, array $relationsSettings): array {
+	protected function getRelations(array $modelsList, array $relationsSettings): array {
 		$result = [];
 
-		foreach ($modelsList as $model) {
-			[$plugin, $model] = pluginSplit($model);
-
-			$modelInstance = TableRegistry::get($model);
-			//$io->out('Checking: ' . $model . ' (table ' . $modelInstance->table() . ')', 1, ConsoleIo::VERBOSE);
-
-			/** @var \Cake\ORM\Association[] $associations */
-			$associations = $modelInstance->associations();
-			foreach ($associations as $association) {
-				$relationType = $association->type();
-				$relationModel = $association->getAlias();
-				//$io->out(' - Relation detected: ' . $model . ' ' . $this->relationsSettings[$relationType]['label'] . ' ' . $relationModel, 1, ConsoleIo::VERBOSE);
-
-				$result[$plugin][$model][$relationType][] = $relationModel;
-			}
-
-			//TODO
-			continue;
-
-			foreach ($relationsSettings as $relationType => $settings) {
-				if (empty($modelInstance->$relationType) || !is_array($modelInstance->$relationType)) {
-					continue;
+		foreach ($modelsList as $plugin => $models) {
+			foreach ($models as $model) {
+				if (!$plugin) {
+					$plugin = 'APP';
 				}
 
-				$relations = $modelInstance->$relationType;
+				$modelInstance = TableRegistry::get($model);
+				//$io->out('Checking: ' . $model . ' (table ' . $modelInstance->table() . ')', 1, ConsoleIo::VERBOSE);
 
-				if ($this->miscSettings['realModels']) {
-					$result[$plugin][$model][$relationType] = [];
-					foreach ($relations as $name => $value) {
-						if (is_array($value) && !empty($value) && !empty($value['className'])) {
-							$result[$plugin][$model][$relationType][] = $value['className'];
-						} else {
-							$result[$plugin][$model][$relationType][] = $name;
-						}
+				/** @var \Cake\ORM\Association[] $associations */
+				$associations = $modelInstance->associations();
+				foreach ($associations as $association) {
+					$relationType = $association->type();
+					$relationModel = $association->getAlias();
+					//$io->out(' - Relation detected: ' . $model . ' ' . $this->relationsSettings[$relationType]['label'] . ' ' . $relationModel, 1, ConsoleIo::VERBOSE);
+
+					$result[$plugin][$model][$relationType][] = $relationModel;
+				}
+
+				//TODO
+				continue;
+
+				foreach ($relationsSettings as $relationType => $settings) {
+					if (empty($modelInstance->$relationType) || !is_array($modelInstance->$relationType)) {
+						continue;
 					}
-				} else {
-					$result[$plugin][$model][$relationType] = array_keys($relations);
+
+					$relations = $modelInstance->$relationType;
+
+					if ($this->miscSettings['realModels']) {
+						$result[$plugin][$model][$relationType] = [];
+						foreach ($relations as $name => $value) {
+							if (is_array($value) && !empty($value) && !empty($value['className'])) {
+								$result[$plugin][$model][$relationType][] = $value['className'];
+							} else {
+								$result[$plugin][$model][$relationType][] = $name;
+							}
+						}
+					} else {
+						$result[$plugin][$model][$relationType] = array_keys($relations);
+					}
 				}
 			}
 		}
@@ -363,7 +384,7 @@ class ModelGraphCommand extends Command {
 		if (!$graph->hasGraph('cluster_' . $name)) {
 			$clusterGraph = Graph::create('cluster_' . $name);
 			$this->_addAttributes($clusterGraph, $attributes);
-			//$this->graph->addGraph($clusterGraph->setName($label));
+			$this->graph->addGraph($clusterGraph->setName($label));
 		} else {
 			$clusterGraph = $this->graph->getGraph('cluster_' . $name);
 		}
@@ -401,18 +422,16 @@ class ModelGraphCommand extends Command {
 		$this->_buildGraphLegend($settings);
 
 		// Add nodes for all models
-		foreach ($modelsList as $model) {
-			[$plugin, $model] = pluginSplit($model);
-
+		foreach ($modelsList as $plugin => $models) {
 			if (!in_array($plugin, $plugins, true)) {
 				$plugins[] = $plugin;
 				$pluginGraph = $this->_addCluster($this->graph, $plugin);
 			}
 
-			$label = preg_replace("/^$plugin\\./", '', $model);
-			$node = Node::create($model, $label)->setShape('box')->setFontname('Helvetica')->setFontsize(10);
-			$pluginGraph = $this->_addCluster($this->graph, $plugin);
-			$pluginGraph->setNode($node);
+			foreach ($models as $model) {
+				$node = Node::create($model, $model)->setShape('box')->setFontname('Helvetica')->setFontsize(10);
+				$pluginGraph->setNode($node);
+			}
 		}
 
 		// Add all relations
@@ -435,7 +454,7 @@ class ModelGraphCommand extends Command {
 						} else {
 							$relatedModelNode = $this->graph->findNode($relatedModel);
 							if ($relatedModelNode === null) {
-								Log::error('Could not find node for ' . $relatedModel);
+								Log::error('Could not find node for related ' . $relatedModel);
 							} else {
 								$edge = Edge::create($modelNode, $relatedModelNode);
 								$this->graph->link($edge);

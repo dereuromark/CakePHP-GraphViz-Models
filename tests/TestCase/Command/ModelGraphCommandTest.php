@@ -57,7 +57,7 @@ class ModelGraphCommandTest extends TestCase {
 	 */
 	public function testGetModels(): void {
 		$models = $this->invokeMethod($this->command, 'getModels');
-		$this->assertSame(['TestRecords'], $models);
+		$this->assertSame(['APP' => ['TestRecords']], $models);
 	}
 
 	/**
