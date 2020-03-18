@@ -1,54 +1,68 @@
-CakePHP GraphViz Relations
------------------------
+# CakePHP ModelGraph plugin
 
-This is a CakePHP shell that will find all models in your CakePHP application and
+[![Minimum PHP Version](http://img.shields.io/badge/php-%3E%3D%207.2-8892BF.svg)](https://php.net/)
+[![License](https://poser.pugx.org/dereuromark/cakephp-model-graph/license)](https://packagist.org/packages/dereuromark/cakephp-model-graph)
+[![Coding Standards](https://img.shields.io/badge/cs-PSR--2--R-yellow.svg)](https://github.com/php-fig-rectified/fig-rectified-standards)
+
+This is a CakePHP plugin that will find all Tables in your CakePHP application and
 plugins, figure out the relationships between them, and will build a nice graph,
-visualzing those relationships for you.
+visualizing those relationships for you.
 
-It supports CakePHP 2.x, and requires PHP 5.3.3 or greater.  But there
-are numerous ways it can fail to work for you.  If it does fail, please let me
-know and I'll try to fix it.
+Note: This branch is for **CakePHP 4.0+**. See [version map](https://github.com/dereuromark/cakephp-model-graph/wiki#cakephp-version-map) for details.
 
+## Requirements
 
-Intallation via Composer
+This script relies on `phpDocumentor/Graphviz` package, rather than directly on the command-line dot tool.
+For a graphical result instead of just text-info you will need to install the Graphviz command line tool incl. `dot`.
 
+If on Windows, make sure you set the path in Configure key `GraphViz.path`:
+```php
+// config/app.php
+'GraphViz' => [
+	'path' => 'C:\...\graphviz\bin\\',
+],
 ```
-require: {
-	"mamchenkov/cakephp-graphviz-models": "dev-master"
-}
+
+## Installation
+
+You can install this plugin into your CakePHP application using [composer](https://getcomposer.org):
+```
+composer require --dev dereuromark/cakephp-model-graph:dev-master
+```
+
+Note: This is not meant for production, so make sure you use the `--dev` flag and install it as development-only tool.
+
+
+## Setup
+
+Don't forget to load it under your bootstrap function in `Application.php`:
+```php
+$this->addPlugin('ModelGraph');
 ```
 
 
-Requirements
-------------
-
-Since version 2.1 (Angry Blue Octopus On Steroids), this script relies on phpDocumentor/Graphviz
-package, rather than directly on the command-line dot tool.
-But you will need to install the Graphviz command line tool incl. dot.
-
-
-Usage
------
+## Usage
 
 The simplest way to use this shell is just to run it via CakePHP console:
 
 ```
-$ Console/cake GraphVizRelations.graph
+$ bin/cake model_graph
 ```
 
-This should generate a graph.png image in your current directory.  Please have a look.
+This should generate a graph.png image in your TMP directory.  Please have a look.
 
 If you need more control, there are two options that this shell understand from the
 command line: filename and format.   You can use either the filename option like so:
 
 ```
-$ Console/cake GraphVizRelations.graph /tmp/my_models.png
+$ bin/cake model_graph /tmp/relations.dot
 ```
+It will derive the format from the extension if possible.
 
-Or you can use both options together like so:
+You can provide the format manually, as well:
 
 ```
-$ Console/cake GraphVizRelations.graph /tmp/my_models.svg svg
+$ bin/cake model_graph -f svg
 ```
 
 No special magic is done about the filename.  What You Give Is What You Get.  As for the
@@ -58,5 +72,10 @@ If you are still looking for more control, have a look inside the script.  There
 plenty of settings, options, parameters, and comments for you to make sense of it all. It
 might be helpful to get familiar with GraphViz Dot Language, just to feel a tiny bit more
 confident.
+
+In case you rendered a dot file first, you can use the `render` command to make an image out of it:
+```
+$ bin/cake ModelGraph render /tmp/relations.dot /tmp/relations.svg
+```
 
 Enjoy!

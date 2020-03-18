@@ -1,0 +1,4 @@
+parameters:
+    autoload_files:
+        - bootstrap.php
+    ignoreErrors:
