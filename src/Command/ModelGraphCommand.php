@@ -9,6 +9,7 @@ use Cake\Console\ConsoleOptionParser;
 use Cake\Core\App;
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
+use Cake\Filesystem\Folder;
 use Cake\Log\Log;
 use Cake\ORM\Association;
 use Cake\ORM\TableRegistry;
@@ -49,6 +50,19 @@ class ModelGraphCommand extends Command {
 	 * Change this to something else if you have a plugin with the same name.
 	 */
 	protected const GRAPH_LEGEND = 'Graph Legend';
+
+	/**
+	 * @var \Cake\Console\ConsoleIo
+	 */
+	protected $io;
+
+	/**
+	 * @var string[]
+	 */
+	protected $blacklistedPlugins = [
+		'DebugKit',
+		'Migrations',
+	];
 
 	/**
 	 * Consult the GraphViz documentation for node, edge, and
@@ -110,13 +124,26 @@ class ModelGraphCommand extends Command {
 	protected $graph;
 
 	/**
-	 * Implement this method with your command's logic.
+	 * Displays in textual form and then render dot and image files.
 	 *
 	 * @param \Cake\Console\Arguments $args The command arguments.
 	 * @param \Cake\Console\ConsoleIo $io The console io
 	 * @return int|null|void The exit code or null for success
 	 */
 	public function execute(Arguments $args, ConsoleIo $io) {
+		$this->io = $io;
+
+		$models = $this->_getModels();
+		$relationsData = $this->_getRelations($models, $this->relationsSettings);
+		//output text
+
+		$fileName = $this->generate($models, $relationsData);
+		$io->out('Done :) Result can be found in ' . $fileName, 1, ConsoleIo::VERBOSE);
+
+		$imageFileName = $this->render($fileName);
+		$io->out('Done :) Image can be found as ' . $imageFileName, 1, ConsoleIo::VERBOSE);
+
+		$io->success('All done.');
 	}
 
 	/**
@@ -130,8 +157,7 @@ class ModelGraphCommand extends Command {
 		$this->graphSettings = (array)Configure::read('GraphViz') + $this->graphSettings;
 
 		if (!file_exists($inputFile)) {
-			$io->error('Input file cannot be found.');
-			return;
+			throw new \RuntimeException('Input file cannot be found.');
 		}
 
 		$type = $this->_detectType($outputFile, ['dot']);
@@ -145,10 +171,10 @@ class ModelGraphCommand extends Command {
 		$fileArg = escapeshellarg($inputFile);
 		exec($this->graphSettings['path'] . "dot -T$type -o$fileName < $fileArg 2>&1", $output, $code);
 		if ($code !== 0) {
-			$io->error(implode(PHP_EOL, $output));
-			return;
+			throw new \RuntimeException(implode(PHP_EOL, $output));
 		}
-		$io->out('Done :) Image can be found in ' . $fileName, 1, ConsoleIo::VERBOSE);
+
+		return $fileName;
 	}
 
 	/**
@@ -157,7 +183,7 @@ class ModelGraphCommand extends Command {
 	 * @param string|null $outputFile
 	 * @return int|null|void
 	 */
-	public function generate($outputFile = null) {
+	public function generate(array $models, array $relationsData, $outputFile = null) {
 		$this->graphSettings = (array)Configure::read('GraphViz') + $this->graphSettings;
 
 		// Prepare graph settings
@@ -172,11 +198,9 @@ class ModelGraphCommand extends Command {
 			call_user_func([$this->graph, 'set' . $key], $value);
 		}
 
-		$models = $this->_getModels();
-		$relationsData = $this->_getRelations($models, $this->relationsSettings);
 		$this->_buildGraph($models, $relationsData, $this->relationsSettings);
 
-		$type = $this->_detectType($outputFile);
+		$type = 'dot'; //$this->_detectType($outputFile);
 
 		if ($outputFile) {
 			$fileName = $outputFile;
@@ -185,7 +209,8 @@ class ModelGraphCommand extends Command {
 		}
 
 		$this->_outputGraph($fileName, $type);
-		$io->out('Done :) Result can be found in ' . $fileName, 1, ConsoleIo::VERBOSE);
+
+		return $fileName;
 	}
 
 	/**
@@ -196,39 +221,74 @@ class ModelGraphCommand extends Command {
 	 * @return array
 	 */
 	protected function _getModels() {
-		$result = [];
+		$result = $this->getModels();
 
-		//can be removed?
-		$appModels = App::objects('Model', null, false);
-		$result['app'] = [];
-		foreach ($appModels as $model) {
-			if (strpos($model, 'AppModel') !== false) {
-				continue;
-			}
-			$result['app'][] = $model;
-		}
 		$plugins = Plugin::loaded();
 		foreach ($plugins as $plugin) {
-			if (in_array($plugin, ['DebugKit', 'Migrations'])) {
+			if (in_array($plugin, $this->blacklistedPlugins, true)) {
 				continue;
 			}
 
-			$pluginModels = App::objects($plugin . '.Model', null, false);
-			if (!empty($pluginModels)) {
-				if (!isset($result[$plugin])) {
-					$result[$plugin] = [];
-				}
+			$pluginModels = $this->getModels($plugin);
 
-				foreach ($pluginModels as $model) {
-					if (strpos($model, 'AppModel') !== false) {
-						continue;
-					}
-					$result[$plugin][] = $plugin . '.' . $model;
+			foreach ($pluginModels as $model) {
+				if (strpos($model, 'AppModel') !== false) {
+					continue;
 				}
+				$result[] = $plugin . '.' . $model;
 			}
 		}
 
 		return $result;
+	}
+
+	/**
+	 * @param \ModelGraph\Command\string|null $plugin
+	 *
+	 * @return string[]
+	 */
+	protected function getModels(?string $plugin = null): array
+	{
+		$paths = App::path('Model/Table', $plugin);
+		$files = $this->getFiles($paths);
+
+		$models = [];
+		foreach ($files as $file) {
+			if (!preg_match('/^(\w+)Table$/', $file, $matches)) {
+				continue;
+			}
+			$models[] = $matches[1];
+		}
+
+		return $models;
+	}
+
+	/**
+	 * @param array $folders
+	 *
+	 * @return array
+	 */
+	protected function getFiles(array $folders) {
+		$names = [];
+		foreach ($folders as $folder) {
+			$folderContent = (new Folder($folder))->read(Folder::SORT_NAME, true);
+
+			foreach ($folderContent[1] as $file) {
+				$name = pathinfo($file, PATHINFO_FILENAME);
+				$names[] = $name;
+			}
+
+			foreach ($folderContent[0] as $subFolder) {
+				$folderContent = (new Folder($folder . $subFolder))->read(Folder::SORT_NAME, true);
+
+				foreach ($folderContent[1] as $file) {
+					$name = pathinfo($file, PATHINFO_FILENAME);
+					$names[] = $subFolder . '.' . $name;
+				}
+			}
+		}
+
+		return $names;
 	}
 
 	/**
@@ -241,43 +301,43 @@ class ModelGraphCommand extends Command {
 	protected function _getRelations($modelsList, $relationsSettings) {
 		$result = [];
 
-		foreach ($modelsList as $plugin => $models) {
-			foreach ($models as $model) {
+		foreach ($modelsList as $model) {
+			[$plugin, $model] = pluginSplit($model);
 
-				$modelInstance = TableRegistry::get($model);
-				$io->out('Checking: ' . $model . ' (table ' . $modelInstance->table() . ')', 1, ConsoleIo::VERBOSE);
+			$modelInstance = TableRegistry::get($model);
+			//$io->out('Checking: ' . $model . ' (table ' . $modelInstance->table() . ')', 1, ConsoleIo::VERBOSE);
 
-				$associations = $modelInstance->associations();
-				foreach ($associations as $association) {
-					$relationType = $association->type();
-					$relationModel = $association->table();
-					$io->out(' - Relation detected: ' . $model . ' ' . $this->relationsSettings[$relationType]['label'] . ' ' . $relationModel, 1, ConsoleIo::VERBOSE);
+			/** @var \Cake\ORM\Association[] $associations */
+			$associations = $modelInstance->associations();
+			foreach ($associations as $association) {
+				$relationType = $association->type();
+				$relationModel = $association->getAlias();
+				//$io->out(' - Relation detected: ' . $model . ' ' . $this->relationsSettings[$relationType]['label'] . ' ' . $relationModel, 1, ConsoleIo::VERBOSE);
 
-					$result[$plugin][$model][$relationType][] = $relationModel;
+				$result[$plugin][$model][$relationType][] = $relationModel;
+			}
+
+			//TODO
+			continue;
+
+			foreach ($relationsSettings as $relationType => $settings) {
+				if (empty($modelInstance->$relationType) || !is_array($modelInstance->$relationType)) {
+					continue;
 				}
 
-				//TODO
-				continue;
+				$relations = $modelInstance->$relationType;
 
-				foreach ($relationsSettings as $relationType => $settings) {
-					if (empty($modelInstance->$relationType) || !is_array($modelInstance->$relationType)) {
-						continue;
-					}
-
-					$relations = $modelInstance->$relationType;
-
-					if ($this->miscSettings['realModels']) {
-						$result[$plugin][$model][$relationType] = [];
-						foreach ($relations as $name => $value) {
-							if (is_array($value) && !empty($value) && !empty($value['className'])) {
-								$result[$plugin][$model][$relationType][] = $value['className'];
-							} else {
-								$result[$plugin][$model][$relationType][] = $name;
-							}
+				if ($this->miscSettings['realModels']) {
+					$result[$plugin][$model][$relationType] = [];
+					foreach ($relations as $name => $value) {
+						if (is_array($value) && !empty($value) && !empty($value['className'])) {
+							$result[$plugin][$model][$relationType][] = $value['className'];
+						} else {
+							$result[$plugin][$model][$relationType][] = $name;
 						}
-					} else {
-						$result[$plugin][$model][$relationType] = array_keys($relations);
 					}
+				} else {
+					$result[$plugin][$model][$relationType] = array_keys($relations);
 				}
 			}
 		}
@@ -341,23 +401,23 @@ class ModelGraphCommand extends Command {
 		$this->_buildGraphLegend($settings);
 
 		// Add nodes for all models
-		foreach ($modelsList as $plugin => $models) {
-			if (!in_array($plugin, $plugins)) {
+		foreach ($modelsList as $model) {
+			[$plugin, $model] = pluginSplit($model);
+
+			if (!in_array($plugin, $plugins, true)) {
 				$plugins[] = $plugin;
 				$pluginGraph = $this->_addCluster($this->graph, $plugin);
 			}
 
-			foreach ($models as $model) {
-				$label = preg_replace("/^$plugin\\./", '', $model);
-				$node = Node::create($model, $label)->setShape('box')->setFontname('Helvetica')->setFontsize(10);
-				$pluginGraph = $this->_addCluster($this->graph, $plugin);
-				$pluginGraph->setNode($node);
-			}
+			$label = preg_replace("/^$plugin\\./", '', $model);
+			$node = Node::create($model, $label)->setShape('box')->setFontname('Helvetica')->setFontsize(10);
+			$pluginGraph = $this->_addCluster($this->graph, $plugin);
+			$pluginGraph->setNode($node);
 		}
 
 		// Add all relations
 		foreach ($relationsList as $plugin => $models) {
-			if (!in_array($plugin, $plugins)) {
+			if (!in_array($plugin, $plugins, true)) {
 				$plugins[] = $plugin;
 				$pluginGraph = $this->_addCluster($this->graph, $plugin);
 			}
@@ -475,14 +535,13 @@ class ModelGraphCommand extends Command {
 		$renderParser = $generateParser;
 		$renderParser['arguments'][] = [
 			'name' => 'input.dot',
-			'required' => true,
 		];
 		$renderParser['arguments'][] = [
 			'name' => 'output.ext',
 		];
 
 		$parser->setDescription(
-			'Render graphs from the model relations.'
+			'Renders graph from the model relations.'
 		)->addSubcommand('generate', [
 				'help' => 'Generate the graph.',
 				'parser' => $generateParser,
