@@ -3,3 +3,5 @@
 /logs/*
 /phpunit.phar
 /composer.lock
+/.phpunit.result.cache
+/.idea/
