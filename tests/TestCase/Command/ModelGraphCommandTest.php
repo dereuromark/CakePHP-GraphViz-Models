@@ -8,10 +8,12 @@ use Cake\TestSuite\ConsoleIntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 use ModelGraph\Command\ModelGraphCommand;
 use Shim\TestSuite\ConsoleOutput;
+use Shim\TestSuite\TestTrait;
 
 class ModelGraphCommandTest extends TestCase {
 
 	use ConsoleIntegrationTestTrait;
+	use TestTrait;
 
 	/**
 	 * @var \ModelGraph\Command\ModelGraphCommand
@@ -48,6 +50,14 @@ class ModelGraphCommandTest extends TestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
+	}
+
+	/**
+	 * @return void
+	 */
+	public function testGetModels(): void {
+		$models = $this->invokeMethod($this->command, 'getModels');
+		$this->assertSame(['TestRecords'], $models);
 	}
 
 	/**

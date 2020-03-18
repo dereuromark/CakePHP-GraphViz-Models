@@ -133,7 +133,7 @@ class ModelGraphCommand extends Command {
 	public function execute(Arguments $args, ConsoleIo $io) {
 		$this->io = $io;
 
-		$models = $this->_getModels();
+		$models = $this->getModels();
 		$relationsData = $this->_getRelations($models, $this->relationsSettings);
 		//output text
 
@@ -220,8 +220,8 @@ class ModelGraphCommand extends Command {
 	 *
 	 * @return array
 	 */
-	protected function _getModels() {
-		$result = $this->getModels();
+	protected function getModels(): array {
+		$result = $this->_getModels();
 
 		$plugins = Plugin::loaded();
 		foreach ($plugins as $plugin) {
@@ -229,7 +229,7 @@ class ModelGraphCommand extends Command {
 				continue;
 			}
 
-			$pluginModels = $this->getModels($plugin);
+			$pluginModels = $this->_getModels($plugin);
 
 			foreach ($pluginModels as $model) {
 				if (strpos($model, 'AppModel') !== false) {
@@ -247,9 +247,9 @@ class ModelGraphCommand extends Command {
 	 *
 	 * @return string[]
 	 */
-	protected function getModels(?string $plugin = null): array
+	protected function _getModels(?string $plugin = null): array
 	{
-		$paths = App::path('Model/Table', $plugin);
+		$paths = App::classPath('Model/Table', $plugin);
 		$files = $this->getFiles($paths);
 
 		$models = [];
@@ -268,7 +268,7 @@ class ModelGraphCommand extends Command {
 	 *
 	 * @return array
 	 */
-	protected function getFiles(array $folders) {
+	protected function getFiles(array $folders): array {
 		$names = [];
 		foreach ($folders as $folder) {
 			$folderContent = (new Folder($folder))->read(Folder::SORT_NAME, true);
@@ -298,7 +298,7 @@ class ModelGraphCommand extends Command {
 	 * @param array $relationsSettings Relationship settings
 	 * @return array
 	 */
-	protected function _getRelations($modelsList, $relationsSettings) {
+	protected function _getRelations(array $modelsList, array $relationsSettings): array {
 		$result = [];
 
 		foreach ($modelsList as $model) {
@@ -392,7 +392,7 @@ class ModelGraphCommand extends Command {
 	 * @param array $settings Settings
 	 * @return void
 	 */
-	protected function _buildGraph($modelsList, $relationsList, $settings) {
+	protected function _buildGraph($modelsList, $relationsList, $settings): void {
 		// We'll collect apps and plugins in here
 		$plugins = [];
 
@@ -459,7 +459,7 @@ class ModelGraphCommand extends Command {
 	 * @param array $relationsSettings Array with relation types and settings
 	 * @return void
 	 */
-	protected function _buildGraphLegend($relationsSettings) {
+	protected function _buildGraphLegend(array $relationsSettings): void {
 		$legendNodeSettings = [
 				'shape' => 'box',
 				'width' => 0.5,

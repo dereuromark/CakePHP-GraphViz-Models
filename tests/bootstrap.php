@@ -12,14 +12,15 @@ define('ROOT', dirname(__DIR__));
 define('TMP', ROOT . DS . 'tmp' . DS);
 define('LOGS', ROOT . DS . 'logs' . DS);
 define('CACHE', TMP . 'cache' . DS);
-define('APP', sys_get_temp_dir());
+define('TESTS', ROOT . DS . 'tests' . DS);
+define('CONFIG', TESTS . 'config' . DS);
 define('APP_DIR', 'src');
+define('APP', TESTS . 'test_app' . DS . APP_DIR . DS);
 define('CAKE_CORE_INCLUDE_PATH', ROOT . '/vendor/cakephp/cakephp');
 define('CORE_PATH', CAKE_CORE_INCLUDE_PATH . DS);
 define('CAKE', CORE_PATH . APP_DIR . DS);
 
 define('WWW_ROOT', ROOT . DS . 'webroot' . DS);
-define('CONFIG', dirname(__FILE__) . DS . 'config' . DS);
 
 ini_set('intl.default_locale', 'de-DE');
 
@@ -28,7 +29,8 @@ require CORE_PATH . 'config/bootstrap.php';
 
 Cake\Core\Configure::write('App', [
 		'namespace' => 'TestApp',
-		'encoding' => 'UTF-8']);
+		'encoding' => 'UTF-8']
+);
 Cake\Core\Configure::write('debug', true);
 
 mb_internal_encoding('UTF-8');
