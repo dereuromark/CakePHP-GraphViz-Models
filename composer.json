@@ -14,7 +14,7 @@
 	],
 	"require": {
 		"cakephp/cakephp": "^3.8",
-		"phpDocumentor/GraphViz": "1.*"
+		"phpdocumentor/graphviz": "^1.0"
 	},
 	"autoload": {
 		"psr-4": {
