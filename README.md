@@ -75,7 +75,7 @@ confident.
 
 In case you rendered a dot file first, you can use the `render` command to make an image out of it:
 ```
-$ bin/cake ModelGraph render /tmp/relations.dot /tmp/relations.svg
+$ bin/cake model_graph render /tmp/relations.dot /tmp/relations.svg
 ```
 
 Enjoy!
