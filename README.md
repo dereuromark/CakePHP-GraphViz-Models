@@ -1,5 +1,6 @@
 # CakePHP ModelGraph plugin
 
+[![CI](https://github.com/dereuromark/cakephp-model-graph/workflows/CI/badge.svg?branch=master)](https://github.com/dereuromark/cakephp-model-graph/actions?query=workflow%3ACI+branch%3Amaster)
 [![Minimum PHP Version](http://img.shields.io/badge/php-%3E%3D%207.2-8892BF.svg)](https://php.net/)
 [![License](https://poser.pugx.org/dereuromark/cakephp-model-graph/license)](https://packagist.org/packages/dereuromark/cakephp-model-graph)
 [![Coding Standards](https://img.shields.io/badge/cs-PSR--2--R-yellow.svg)](https://github.com/php-fig-rectified/fig-rectified-standards)
